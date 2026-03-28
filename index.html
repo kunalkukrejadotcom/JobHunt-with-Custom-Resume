@@ -1,0 +1,271 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Resume Optimizer & Tracker</title>
+    <style>
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; max-width: 1200px; margin: 0 auto; padding: 20px; background: #fdfdfd; color: #333; }
+        h1, h2, h3 { border-bottom: 2px solid #ddd; padding-bottom: 5px; margin-top: 0; }
+        h1 { text-align: center; border-bottom: none; margin-bottom: 0;}
+        #greeting { text-align: center; color: #666; font-size: 1.1em; font-weight: normal; border: none; margin-top: -10px; margin-bottom: 20px;}
+        
+        /* 1. Make left and right sides equal in length so page is perfectly unscrollable */
+        .main-container { display: flex; gap: 25px; margin-top: 20px; align-items: stretch; height: calc(100vh - 120px); }
+        .left-col { flex: 6; display: flex; flex-direction: column; gap: 20px; overflow-y: auto; padding-right: 15px; min-width: 0; }
+        .right-col { flex: 4; display: flex; flex-direction: column; min-width: 0; }
+        
+        .panel { background: #fff; padding: 20px; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); border: 1px solid #eaeaea; flex-shrink: 0;}
+        .row { display: flex; gap: 15px; margin-bottom: 15px; }
+        .col { flex: 1; display: flex; flex-direction: column; min-width: 0; }
+        label { font-weight: bold; margin-bottom: 5px; font-size: 0.9em; color: #444; }
+        input[type="text"], input[type="file"] { padding: 10px; border: 1px solid #ccc; border-radius: 4px; font-size: 14px; box-sizing: border-box; width: 100%; }
+        button { background: #0078d4; color: white; border: none; padding: 10px 15px; border-radius: 4px; cursor: pointer; font-weight: bold; font-size: 14px; transition: background 0.2s;}
+        button:hover { background: #005a9e; }
+        button:disabled { background: #aaa; cursor: not-allowed; }
+        
+        /* Terminal Log stretched to fit the right column perfectly */
+        #logs { background: #1e1e1e; color: #4af626; padding: 15px; font-family: 'Courier New', Courier, monospace; flex: 1; overflow-y: auto; overflow-x: hidden; border-radius: 8px; white-space: pre-wrap; overflow-wrap: break-word; font-size: 0.9em; border: 1px solid #000; box-shadow: inset 0 4px 6px rgba(0,0,0,0.3); margin: 0;}
+        
+        table { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 0.85em; }
+        th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
+        th { background: #f2f2f2; }
+        
+        /* Modern Scrollbars */
+        ::-webkit-scrollbar { width: 8px; }
+        ::-webkit-scrollbar-track { background: #f1f1f1; border-radius: 4px;}
+        ::-webkit-scrollbar-thumb { background: #c1c1c1; border-radius: 4px;}
+        ::-webkit-scrollbar-thumb:hover { background: #a8a8a8; }
+    </style>
+</head>
+<body>
+
+    <h1><span style="color:#0078d4">Resume</span> Optimizer Tracker</h1>
+    <h3 id="greeting"></h3>
+
+    <div class="main-container">
+        <!-- LEFT COLUMN (Controls) - Scrolling Independently -->
+        <div class="left-col">
+            
+            <div class="panel" style="border-top: 4px solid #0078d4;">
+                <div style="display:flex; justify-content:space-between; align-items:center;">
+                    <h2>Phase 1: Setup Profile</h2>
+                    <button onclick="resetData()" style="background:#d9534f; padding: 6px 10px; font-size: 12px;">Reset Data</button>
+                </div>
+                <div class="row" style="align-items: flex-end;">
+                    <div class="col">
+                        <label>Upload Old Resume (PDF):</label>
+                        <input type="file" id="resume_file" accept=".pdf">
+                    </div>
+                    <div class="col" style="flex: 0.5;">
+                        <button id="btn-init" onclick="initProfile()" style="width: 100%;">Initialize</button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="panel" style="border-top: 4px solid #28a745;">
+                <h2>Phase 2: Apply to a New Job</h2>
+                <div class="row">
+                    <div class="col">
+                        <label>Job URL:</label>
+                        <input type="text" id="job_url" placeholder="https://careers.company.com/...">
+                    </div>
+                </div>
+                <button id="btn-fetch" onclick="fetchJobDetails()">1. Fetch Job Keywords</button>
+                
+                <div id="confirmation-section" style="display:none; margin-top:20px; padding:15px; border-radius:4px; border:1px solid #99c9a3; background:#f0faf3;">
+                    <h3 style="color:#155724; border-bottom:1px solid #c3e6cb;">Step 2: Confirm Details</h3>
+                    <p style="margin:5px 0 15px 0; font-size: 0.95em;"><strong>Company:</strong> <span id="lbl-company"></span> &nbsp;|&nbsp; <strong>Role:</strong> <span id="lbl-role"></span></p>
+                    <label style="color:#155724;">Confirmed Keywords (Remove keywords you don't know):</label>
+                    <input type="text" id="confirmed_keywords" style="width:100%; margin-bottom:15px; border: 1px solid #b1dfbb;" />
+                    <button id="btn-generate" onclick="generateResume()" style="background:#28a745;">2. Generate Tailored Resume</button>
+                </div>
+            </div>
+
+            <div class="panel">
+                <div style="display:flex; justify-content:space-between; align-items:center; border-bottom: 2px solid #ddd; padding-bottom: 5px;">
+                    <h2 style="border-bottom: none; margin:0; padding:0;">Job Application History</h2>
+                    <button onclick="loadHistory()" style="background:#666; padding: 6px 10px; font-size: 12px;">Refresh</button>
+                </div>
+                <div>
+                    <table id="history-table">
+                        <thead>
+                            <tr>
+                                <th>Date</th>
+                                <th>Company</th>
+                                <th>Role</th>
+                                <th style="text-align: center;">Pre Score</th>
+                                <th style="text-align: center;">Post Score</th>
+                                <th>Status</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <!-- Populated by JS -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            
+        </div>
+
+        <!-- RIGHT COLUMN (Terminal Logs) - Locked to full height -->
+        <div class="right-col">
+            <div id="logs">System ready. Reading model parameters from config.json.</div>
+        </div>
+    </div>
+
+    <script>
+        let currentJobReqs = null;
+
+        function logMsg(msg) {
+            const el = document.getElementById('logs');
+            const time = new Date().toLocaleTimeString();
+            el.textContent += `\n[${time}] ${msg}`;
+            el.scrollTop = el.scrollHeight;
+        }
+
+        async function checkUserStatus() {
+            try {
+                const response = await fetch('/api/user_status');
+                const result = await response.json();
+                if (result.exists && result.name) {
+                    document.getElementById('greeting').innerText = `Welcome back, ${result.name}!`;
+                    document.getElementById('btn-init').innerText = "Update Profile";
+                } else {
+                    document.getElementById('greeting').innerText = `Please upload your resume to begin!`;
+                }
+            } catch (err) {}
+        }
+
+        async function resetData() {
+            if(!confirm("Are you sure you want to delete all profiles, tracked applications, and folders?")) return;
+            try {
+                const response = await fetch('/api/reset', { method: 'POST' });
+                if (response.ok) {
+                    loadHistory();
+                    checkUserStatus();
+                    logMsg("System Reset. All data cleared.");
+                }
+            } catch (err) { logMsg(`ERROR: ${err.message}`); }
+        }
+
+        async function initProfile() {
+            const fileInput = document.getElementById('resume_file');
+            if (fileInput.files.length === 0) {
+                alert("Please select a PDF file first.");
+                return;
+            }
+            
+            const file = fileInput.files[0];
+            const btn = document.getElementById('btn-init');
+            btn.disabled = true;
+            logMsg(`Uploading ${file.name} to bootstrap master_profile.json...`);
+            
+            try {
+                const response = await fetch('/api/init', {
+                    method: 'POST',
+                    body: file,
+                    headers: { 'Content-Type': 'application/pdf' }
+                });
+                const result = await response.json();
+                if (result.success) {
+                    logMsg("SUCCESS: Profile dynamically loaded! The master_profile.json is ready.");
+                    checkUserStatus();
+                } else {
+                    logMsg(`ERROR: Failed to parse. ${result.error || ''}`);
+                }
+            } catch (err) {
+                logMsg(`ERROR: Check server logs. Make sure config.json has your API key.`);
+            } finally {
+                btn.disabled = false;
+            }
+        }
+
+        async function fetchJobDetails() {
+            const url = document.getElementById('job_url').value;
+            if (!url) { alert("Please provide a Job URL."); return; }
+            
+            document.getElementById('btn-fetch').disabled = true;
+            logMsg(`Scraping job url and extracting keywords...`);
+            
+            try {
+                const response = await fetch('/api/analyze_job', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ url })
+                });
+                const result = await response.json();
+                if (result.success) {
+                    currentJobReqs = result.job_reqs;
+                    document.getElementById('lbl-company').innerText = currentJobReqs.company;
+                    document.getElementById('lbl-role').innerText = currentJobReqs.role;
+                    const skills = currentJobReqs.required_skills ? currentJobReqs.required_skills.join(', ') : "";
+                    document.getElementById('confirmed_keywords').value = skills;
+                    document.getElementById('confirmation-section').style.display = 'block';
+                    logMsg("Keywords and role successfully auto-extracted. Please review and confirm them below.");
+                } else {
+                    logMsg(`ERROR: ${result.error}`);
+                }
+            } catch (err) { logMsg(`ERROR: ${err}`); }
+            document.getElementById('btn-fetch').disabled = false;
+        }
+
+        async function generateResume() {
+            const url = document.getElementById('job_url').value;
+            const confirmed_keywords = document.getElementById('confirmed_keywords').value;
+            
+            document.getElementById('btn-generate').disabled = true;
+            logMsg("Performing Dual ATS Scoring & Generating markdown...");
+            
+            try {
+                const response = await fetch('/api/generate', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ url, job_reqs: currentJobReqs, confirmed_keywords })
+                });
+                const result = await response.json();
+                if (result.success) {
+                    logMsg(`Pre-Tailoring ATS Score:  ${result.pre_score}%`);
+                    logMsg(`Post-Tailoring ATS Score: ${result.post_score}%`);
+                    logMsg(`SUCCESS: Saved to ${result.dir_path}/tailored_resume.md`);
+                    logMsg(`\n[FINAL MARKDOWN PREVIEW]\n\n${result.resume_md}\n`);
+                    loadHistory();
+                } else {
+                    logMsg(`ERROR: Internal server error. ${result.error || 'Check python console.'}`);
+                }
+            } catch (err) { logMsg(`ERROR: ${err}`); }
+            document.getElementById('btn-generate').disabled = false;
+        }
+
+        async function loadHistory() {
+            try {
+                const response = await fetch('/api/history');
+                const history = await response.json();
+                const tbody = document.querySelector('#history-table tbody');
+                tbody.innerHTML = '';
+                
+                history.forEach(row => {
+                    const pre = row.Pre_Score || row.ATS_Match_Score || '-';
+                    const post = row.Post_Score || row.ATS_Match_Score || '-';
+                    
+                    const tr = document.createElement('tr');
+                    tr.innerHTML = `
+                        <td>${row.Date || ''}</td>
+                        <td>${row.Company || ''}</td>
+                        <td><a href="${row.Job_URL || '#'}" target="_blank" style="color: #0078d4; text-decoration:none;">${row.Role || ''}</a></td>
+                        <td style="text-align: center; color: #888;">${pre}</td>
+                        <td style="text-align: center; font-weight: bold; color: ${parseInt(post) >= 80 ? '#28a745' : '#d9534f'};">${post}</td>
+                        <td><span style="background: #e9ecef; padding: 2px 6px; border-radius: 4px; font-size: 0.85em;">${row.Status || ''}</span></td>
+                    `;
+                    tbody.appendChild(tr);
+                });
+            } catch (err) {
+                console.error("Failed to load history", err);
+            }
+        }
+
+        checkUserStatus();
+        loadHistory();
+    </script>
+</body>
+</html>

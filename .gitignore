@@ -1,0 +1,8 @@
+data/
+applications/
+config.json
+temp_resume.pdf
+__pycache__/
+*.pyc
+*.pdf
+.env
